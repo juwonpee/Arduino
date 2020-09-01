@@ -152,7 +152,7 @@ const byte unielux[12][16] PROGMEM = {
     0x80, 0x69, 0xFF, 0xFF,  
     0xFF, 0xFF, 0xFF, 0xFF,
 };
-
+byte buffer[16];
 #define rst 9
 #define ss 10
 
@@ -172,15 +172,18 @@ void writeCard(bool type) // 0:coinup 1:unielux
     display.println(F("Waiting card"));
     display.display();
 
-    while (! rfid.PICC_IsNewCardPresent() || ! rfid.PICC_ReadCardSerial() )
+    //check for new card and loop if not present
+    while (! rfid.PICC_IsNewCardPresent())
     {
         display.clearDisplay();
-        display.setCursor(0,0);
+        display.setCursor(0,0); 
         display.println(F("Tap card"));
         display.display();
         delay(50);
-        return;
     }
+    //select card
+    rfid.PICC_ReadCardSerial();
+
     if (type == false)
     {
         for (int i = coinupStartBlock; i < (coinupStartBlock + 12); i = i + 4)
@@ -201,10 +204,59 @@ void writeCard(bool type) // 0:coinup 1:unielux
             //write blocks
             for (int j = 0; j < 4; j++)
             {
-                byte buffer[16] = *coinup[i+j];
-                status = rfid.MIFARE_Write((i + j), *coinup[i+j], 16);
+                display.println("Writing block: " + String(i + j));
+                memcpy_P(buffer, coinup[i+j], 16);
+                status = rfid.MIFARE_Write((i + j), buffer, 16);
+                if (status != MFRC522::STATUS_OK)
+                {
+                    display.clearDisplay();
+                    display.setCursor(0,0);
+                    display.println(F("Fail Write"));
+                    display.display();
+                    return;
+                }
             }
         }
+    }
+
+    // unielux write
+    if (type == true)
+    {
+        for (int i = unieluxStartBlock; i < (unieluxStartBlock + 12); i = i + 4)
+        {
+            MFRC522::StatusCode status;
+            //auth with keys
+            status = rfid.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, i, &unieluxKey1, &(rfid.uid));
+
+            if (status != MFRC522::STATUS_OK)
+            {
+                display.clearDisplay();
+                display.setCursor(0,0);
+                display.println(F("Fail auth"));
+                display.display();
+                delay(2000);
+                return;
+            }
+            //write blocks
+            for (int j = 0; j < 4; j++)
+            {
+                display.println("Writing block: " + String(i + j));
+                memcpy_P(buffer, unielux[i+j], 16);
+                status = rfid.MIFARE_Write((i + j), buffer, 16);
+                if (status != MFRC522::STATUS_OK)
+                {
+                    display.clearDisplay();
+                    display.setCursor(0,0);
+                    display.println(F("Fail Write"));
+                    display.display();
+                    return;
+                }
+            }
+        }
+        display.clearDisplay();
+        display.setCursor(0,0);
+        display.println(F("Success"));
+
     }
 
     
