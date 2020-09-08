@@ -159,11 +159,10 @@ byte buffer[16];
 // rfid init and set keys
 MFRC522 rfid(rst, ss);
 MFRC522::MIFARE_Key coinupKey1 = {0x66, 0x77, 0x63, 0x6F, 0x69, 0x6E};
-MFRC522::MIFARE_Key coinupKey2 = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+MFRC522::MIFARE_Key defaultKey = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 MFRC522::MIFARE_Key unieluxKey1 = {0x6B, 0x73, 0x63, 0x6F, 0x69, 0x6E};
-MFRC522::MIFARE_Key unieluxKey2 = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-Adafruit_SSD1306 display(128, 64, &Wire, 01, 800000UL, 800000UL);
+Adafruit_SSD1306 display(128, 64, &Wire, 01, 400000UL, 400000UL);
 
 void writeCard(bool type) // 0:coinup 1:unielux
 {
@@ -204,7 +203,10 @@ void writeCard(bool type) // 0:coinup 1:unielux
             //write blocks
             for (int j = 0; j < 4; j++)
             {
+                display.clearDisplay();
+                display.setCursor(0,0);
                 display.println("Writing block: " + String(i + j));
+                display.display();
                 memcpy_P(buffer, coinup[i+j], 16);
                 status = rfid.MIFARE_Write((i + j), buffer, 16);
                 if (status != MFRC522::STATUS_OK)
@@ -240,7 +242,10 @@ void writeCard(bool type) // 0:coinup 1:unielux
             //write blocks
             for (int j = 0; j < 4; j++)
             {
+                display.clearDisplay();
+                display.setCursor(0,0);
                 display.println("Writing block: " + String(i + j));
+                display.display();
                 memcpy_P(buffer, unielux[i+j], 16);
                 status = rfid.MIFARE_Write((i + j), buffer, 16);
                 if (status != MFRC522::STATUS_OK)
@@ -256,6 +261,7 @@ void writeCard(bool type) // 0:coinup 1:unielux
         display.clearDisplay();
         display.setCursor(0,0);
         display.println(F("Success"));
+        display.display();
 
     }
 
@@ -264,6 +270,10 @@ void writeCard(bool type) // 0:coinup 1:unielux
 
 void setup()
 {
+    //pinmode init
+    pinMode(2, INPUT_PULLUP);
+    pinMode(3, INPUT_PULLUP);
+
     //rfid init
     SPI.begin();
     rfid.PCD_Init();
@@ -285,13 +295,13 @@ void loop() {
   display.println(F("1. coinup"));
   display.println(F("2. unielux"));
   display.display();
-  bool but1 = digitalRead(2);
-  bool but2 = digitalRead(3);
+  bool but1 = !digitalRead(2);
+  bool but2 = !digitalRead(3);
   if (but1 || but2)
   {
       display.println(F("button debouncing wait"));
       display.display();
-      delay(200);
+      delay(1000);
       if (but1 == true)
       {
           writeCard(false);
@@ -302,4 +312,3 @@ void loop() {
       }
   }
 }
-
